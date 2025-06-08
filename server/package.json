@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc --build",
+    "format": "npx prettier --write .",
+    "generate": "npx prisma generate"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +23,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@prisma/client": "^6.9.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0"
   }
