@@ -5,6 +5,8 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recha
 import { GraduationCap, FileText, DollarSign, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface DashboardData {
   stats: {
@@ -29,7 +31,7 @@ interface DashboardData {
 }
 
 const fetchDashboardData = async (): Promise<DashboardData> => {
-  const response = await fetch("/api/dashboard");
+  const response = await fetch("/api/accounting");
   if (!response.ok) {
     throw new Error("Failed to fetch dashboard data");
   }
@@ -61,8 +63,20 @@ export default function Dashboard() {
   if (error) {
     return (
       <div className="p-4">
-        <div className="text-red-500 bg-red-50 p-4 rounded-lg">
-          Error: {error.message}
+        <div className="flex flex-col items-center justify-center gap-3 p-8 bg-red-50 rounded-lg">
+          <AlertCircle className="h-12 w-12 text-red-500" />
+          <h3 className="text-xl font-semibold text-red-600">An error occurred</h3>
+          <p className="text-muted-foreground text-center">
+            Please check your network connection and try again
+          </p>
+          <Button
+            variant="outline"
+            className="mt-4 text-red-500 border-red-300"
+            onClick={() => window.location.reload()}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Retry
+          </Button>
         </div>
       </div>
     );
