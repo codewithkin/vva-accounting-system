@@ -32,6 +32,7 @@ import {
   AlertCircle,
   RefreshCw,
   Download,
+  Clock,
 } from "lucide-react";
 import {
   format,
@@ -45,6 +46,7 @@ import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { saveAs } from "file-saver";
 import RecentInvoicesTable from "@/components/data/RecentInvoicesTable";
+import { Badge } from "@/components/ui/badge";
 
 interface DashboardData {
   stats: {
@@ -73,10 +75,9 @@ interface DashboardData {
 
 const fetchDashboardData = async (): Promise<DashboardData> => {
   const response = await axios.get(
-    `${
-      process.env.NODE_ENV === "development"
-        ? "http://localhost:8080"
-        : "https://vva-server-397iy.kinsta.app/"
+    `${process.env.NODE_ENV === "development"
+      ? "http://localhost:8080"
+      : "https://vva-server-397iy.kinsta.app/"
     }/api/accounting/`
   );
   return response.data;
@@ -260,11 +261,12 @@ export default function Dashboard() {
 
   return (
     <div className="p-4">
-      <article className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold mb-6">Vumba View Academy</h1>
-        <p className="text-muted-foreground text-sm">
+      <article className="flex flex-col mb-8">
+        <h1 className="text-2xl font-bold">Vumba View Academy</h1>
+        <Badge className="text-muted-foreground text-sm border text-blue-500 border-blue-500 w-fit px-6 py-2 bg-transparent flex items-center gap-2 mt-2">
+          <Clock className="w-4 h-4" />
           Today is {format(new Date(), "EEEE, MMMM do")}
-        </p>
+        </Badge>
       </article>
 
       <div className="grid gap-6 grid-cols-1 md:grid-cols-3 w-full">
