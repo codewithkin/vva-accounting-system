@@ -6,16 +6,17 @@ import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import Link from "next/link";
 
 export function Sidebar() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const navItems = [
-    { name: "Dashboard", icon: <Home className="h-5 w-5" /> },
-    { name: "Students", icon: <Users className="h-5 w-5" /> },
-    { name: "Invoices", icon: <FileText className="h-5 w-5" /> },
-    { name: "Uniforms", icon: <Shirt className="h-5 w-5" /> },
-    { name: "Settings", icon: <Settings className="h-5 w-5" /> },
+    { name: "dashboard", icon: <Home className="h-5 w-5" /> },
+    { name: "students", icon: <Users className="h-5 w-5" /> },
+    { name: "invoices", icon: <FileText className="h-5 w-5" /> },
+    { name: "uniforms", icon: <Shirt className="h-5 w-5" /> },
+    { name: "settings", icon: <Settings className="h-5 w-5" /> },
   ];
 
   if (isDesktop) {
@@ -23,23 +24,25 @@ export function Sidebar() {
       <aside className="fixed left-0 top-0 h-screen w-16 border-r bg-background p-2">
         <div className="flex h-full flex-col items-center gap-1 py-4">
           <TooltipProvider>
-          {navItems.map((item) => (
-            <Tooltip key={item.name}>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-12 w-12 hover:bg-muted"
-                >
-                  {item.icon}
-                  <span className="sr-only">{item.name}</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="ml-2">
-                {item.name}
-              </TooltipContent>
-            </Tooltip>
-          ))}
+            {navItems.map((item) => (
+              <Tooltip key={item.name}>
+                <TooltipTrigger asChild>
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    className="h-12 w-12 hover:bg-muted"
+                  >
+                    <Link href={item.name}>
+                      {item.icon}
+                      <span className="sr-only capitalize">{item.name}</span></Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="ml-2">
+                  {item.name}
+                </TooltipContent>
+              </Tooltip>
+            ))}
           </TooltipProvider>
         </div>
       </aside>
