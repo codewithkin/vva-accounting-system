@@ -41,7 +41,10 @@ interface ApiResponse {
 
 const fetchStudents = async (page = 1, limit = 10): Promise<ApiResponse> => {
     const response = await axios.get(
-        `/api/accounting/students/?page=${page}&limit=${limit}`
+        `${process.env.NODE_ENV === "development"
+            ? "http://localhost:8080"
+            : "https://vva-server-397iy.kinsta.app/"
+        }/api/accounting/students/?page=${page}&limit=${limit}`
     );
     return response.data;
 };
@@ -65,7 +68,7 @@ function StudentsPage() {
             <article className="flex flex-col mb-8">
                 <h1 className="text-2xl font-bold">Manage your students</h1>
                 <p className="text-muted-foreground text-sm">
-                    View and manage all enrolled students
+                    View and manage all students enrolled at Vumba View Academy
                 </p>
             </article>
 
