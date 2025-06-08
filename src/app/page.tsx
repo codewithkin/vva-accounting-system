@@ -64,6 +64,7 @@ export default function Dashboard() {
     return (
       <div className="p-4">
         <div className="flex flex-col items-center justify-center gap-3 p-8 bg-red-50 rounded-lg">
+          <p className="text-muted-foreground text-sm border border-red-500 text-red-500 rounded-full px-8 py-2">Vumba View Academy</p>
           <AlertCircle className="h-12 w-12 text-red-500" />
           <h3 className="text-xl font-semibold text-red-600">An error occurred</h3>
           <p className="text-muted-foreground text-center">
