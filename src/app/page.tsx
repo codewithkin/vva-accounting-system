@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import axios from "axios";
 
 interface DashboardData {
   stats: {
@@ -31,11 +32,8 @@ interface DashboardData {
 }
 
 const fetchDashboardData = async (): Promise<DashboardData> => {
-  const response = await fetch("/api/accounting");
-  if (!response.ok) {
-    throw new Error("Failed to fetch dashboard data");
-  }
-  return response.json();
+  const response = await axios.get(`${process.env.NODE_ENV === "development" ? "http://localhost:8080" : "https://"}/api/accounting/`);
+  return response.data;
 };
 
 export default function Dashboard() {
