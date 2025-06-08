@@ -29,6 +29,7 @@ import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
+import RecentInvoicesTable from "@/components/data/RecentInvoicesTable";
 
 interface DashboardData {
   stats: {
@@ -357,26 +358,7 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <Card className="mt-6 p-4">
-        <h3 className="font-medium mb-4">Recent Students</h3>
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {data?.students.slice(0, 6).map((student) => (
-            <Card key={student.id} className="p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <GraduationCap className="text-blue-600 w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-medium">{student.name}</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {student.admissionId}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </Card>
+      <RecentInvoicesTable data={data} />
     </div>
   );
 }
