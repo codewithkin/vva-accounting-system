@@ -1,11 +1,32 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
-import { GraduationCap, FileText, DollarSign, Loader2 } from "lucide-react";
+import * as React from "react";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { GraduationCap, FileText, DollarSign, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 
@@ -19,15 +40,18 @@ interface DashboardData {
     id: string;
     name: string;
     admissionId: string;
+    createdAt: string;
   }>;
   invoices: Array<{
     id: string;
     total: number;
     status: string;
+    createdAt: string;
   }>;
   uniforms: Array<{
     id: string;
     items: any;
+    createdAt: string;
   }>;
 }
 
@@ -36,6 +60,21 @@ const fetchDashboardData = async (): Promise<DashboardData> => {
   return response.data;
 };
 
+const chartConfig = {
+  invoices: {
+    label: "Invoices",
+    color: "var(--chart-1)",
+  },
+  uniforms: {
+    label: "Uniforms",
+    color: "var(--chart-2)",
+  },
+  students: {
+    label: "Students",
+    color: "var(--chart-3)",
+  },
+} satisfies ChartConfig;
+
 export default function Dashboard() {
   const { data, isLoading, error } = useQuery<DashboardData>({
     queryKey: ["dashboard"],
@@ -43,12 +82,66 @@ export default function Dashboard() {
     refetchInterval: 300000, // Refetch every 5 minutes
   });
 
-  // Chart data transformation
-  const chartData = [
-    { name: "Jan", paid: 4000, pending: 2400 },
-    { name: "Feb", paid: 3000, pending: 1398 },
-    // Add more data...
-  ];
+  const [timeRange, setTimeRange] = React.useState("30d");
+
+  // Transform data for the chart
+  const transformChartData = () => {
+    if (!data) return [];
+
+    // Group data by date
+    const dateMap: Record<string, { invoices: number; uniforms: number; students: number; date: string }> = {};
+
+    // Process invoices
+    data.invoices.forEach(invoice => {
+      const date = new Date(invoice.createdAt).toISOString().split('T')[0];
+      if (!dateMap[date]) {
+        dateMap[date] = { invoices: 0, uniforms: 0, students: 0, date };
+      }
+      dateMap[date].invoices += invoice.total;
+    });
+
+    // Process uniforms
+    data.uniforms.forEach(uniform => {
+      const date = new Date(uniform.createdAt).toISOString().split('T')[0];
+      if (!dateMap[date]) {
+        dateMap[date] = { invoices: 0, uniforms: 0, students: 0, date };
+      }
+      // Sum quantities if items is an array, otherwise count as 1
+      if (Array.isArray(uniform.items)) {
+        dateMap[date].uniforms += uniform.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+      } else {
+        dateMap[date].uniforms += 1;
+      }
+    });
+
+    // Process students
+    data.students.forEach(student => {
+      const date = new Date(student.createdAt).toISOString().split('T')[0];
+      if (!dateMap[date]) {
+        dateMap[date] = { invoices: 0, uniforms: 0, students: 0, date };
+      }
+      dateMap[date].students += 1;
+    });
+
+    // Convert to array and sort by date
+    return Object.values(dateMap).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  };
+
+  const allChartData = transformChartData();
+
+  const filteredData = allChartData.filter((item) => {
+    const date = new Date(item.date);
+    const referenceDate = new Date();
+    let daysToSubtract = 30;
+    if (timeRange === "90d") {
+      daysToSubtract = 90;
+    } else if (timeRange === "7d") {
+      daysToSubtract = 7;
+    }
+    const startDate = new Date(referenceDate);
+    startDate.setDate(startDate.getDate() - daysToSubtract);
+    return date >= startDate;
+  });
 
   if (isLoading) {
     return (
@@ -134,22 +227,136 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <Card className="mt-6 p-4">
-        <h3 className="font-medium mb-4">Payments Overview</h3>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <XAxis dataKey="name" />
+      <Card className="mt-6">
+        <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
+          <div className="grid flex-1 gap-1">
+            <CardTitle>School Activity Overview</CardTitle>
+            <CardDescription>
+              Showing school activities including enrollments, invoices, and uniform purchases
+            </CardDescription>
+          </div>
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger
+              className="hidden w-[160px] rounded-lg sm:ml-auto sm:flex"
+              aria-label="Select time range"
+            >
+              <SelectValue placeholder="Last 30 days" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="90d" className="rounded-lg">
+                Last 3 months
+              </SelectItem>
+              <SelectItem value="30d" className="rounded-lg">
+                Last 30 days
+              </SelectItem>
+              <SelectItem value="7d" className="rounded-lg">
+                Last 7 days
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+          <ChartContainer
+            config={chartConfig}
+            className="aspect-auto h-[250px] w-full"
+          >
+            <AreaChart data={filteredData}>
+              <defs>
+                <linearGradient id="fillInvoices" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="5%"
+                    stopColor="var(--color-invoices)"
+                    stopOpacity={0.8}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="var(--color-invoices)"
+                    stopOpacity={0.1}
+                  />
+                </linearGradient>
+                <linearGradient id="fillUniforms" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="5%"
+                    stopColor="var(--color-uniforms)"
+                    stopOpacity={0.8}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="var(--color-uniforms)"
+                    stopOpacity={0.1}
+                  />
+                </linearGradient>
+                <linearGradient id="fillStudents" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="5%"
+                    stopColor="var(--color-students)"
+                    stopOpacity={0.8}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="var(--color-students)"
+                    stopOpacity={0.1}
+                  />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="date"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                minTickGap={32}
+                tickFormatter={(value) => {
+                  const date = new Date(value);
+                  return date.toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                  });
+                }}
+              />
               <YAxis />
-              <Tooltip />
-              <Bar dataKey="paid" fill="#4ade80" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="pending" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(value) => {
+                      return new Date(value).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      });
+                    }}
+                    indicator="dot"
+                  />
+                }
+              />
+              <Area
+                dataKey="invoices"
+                type="natural"
+                fill="url(#fillInvoices)"
+                stroke="var(--color-invoices)"
+                stackId="a"
+              />
+              <Area
+                dataKey="uniforms"
+                type="natural"
+                fill="url(#fillUniforms)"
+                stroke="var(--color-uniforms)"
+                stackId="a"
+              />
+              <Area
+                dataKey="students"
+                type="natural"
+                fill="url(#fillStudents)"
+                stroke="var(--color-students)"
+                stackId="a"
+              />
+              <ChartLegend content={<ChartLegendContent />} />
+            </AreaChart>
+          </ChartContainer>
+        </CardContent>
       </Card>
 
-      {/* Recent Students Section */}
       <Card className="mt-6 p-4">
         <h3 className="font-medium mb-4">Recent Students</h3>
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
