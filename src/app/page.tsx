@@ -31,14 +31,7 @@ export default function Dashboard() {
 
       <Card className="mt-6 p-4">
         <h3 className="font-medium mb-4">Payments Overview</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data}>
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Bar dataKey="paid" fill="#4ade80" />
-            <Bar dataKey="pending" fill="#f59e0b" />
-          </BarChart>
-        </ResponsiveContainer>
+    
       </Card>
     </div>
   );
