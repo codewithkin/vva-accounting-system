@@ -6,6 +6,8 @@
 .pnp.js
 .yarn/install-state.gz
 
+/Todo.md
+
 # testing
 /coverage
 
