@@ -1,4 +1,3 @@
-// components/Sidebar.tsx
 "use client";
 
 import { Home, Users, FileText, Shirt, Settings, Menu } from "lucide-react";
