@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Card } from "@/components/ui/card";
-import { FileText, Loader2, AlertCircle, RefreshCw, Download } from "lucide-react";
+import { FileText, Loader2, AlertCircle, RefreshCw, Download, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { saveAs } from "file-saver";
+import Link from "next/link";
 
 interface Invoice {
     id: string;
@@ -158,6 +159,14 @@ function InvoicesPage() {
                 <p className="text-muted-foreground text-sm">
                     Manage and track all school invoices
                 </p>
+                <Button className="md:w-fit" asChild>
+                    <Link href="/invoices/new">
+                        <span className="flex items-center gap-2">
+                            <Plus className="h-4 w-4" />
+                            New invoice
+                        </span>
+                    </Link>
+                </Button>
             </article>
 
             <Card className="p-4">
