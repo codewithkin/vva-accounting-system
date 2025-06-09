@@ -77,7 +77,7 @@ const fetchDashboardData = async (): Promise<DashboardData> => {
   const response = await axios.get(
     `${process.env.NODE_ENV === "development"
       ? "http://localhost:8080"
-      : "https://vva-server-397iy.kinsta.app/"
+      : "https://vva-server-397iy.kinsta.app"
     }/api/accounting/`
   );
   return response.data;
