@@ -8,6 +8,7 @@ import {
     TableRow,
 } from "../ui/table";
 import { Card } from "../ui/card";
+import { formatDistanceToNow } from "date-fns";
 
 function RecentInvoicesTable({ data }: { data: any }) {
     const invoices = data?.invoices ?? [];
@@ -17,16 +18,15 @@ function RecentInvoicesTable({ data }: { data: any }) {
         <Card className="mt-6 p-4">
             <h3 className="font-medium mb-4">Recent Invoices</h3>
             {
-                data.students && data.students.length > 0 ?
+                data.invoices && data.invoices.length > 0 ?
                     <Table>
                         <TableHeader className="bg-gray-300 rounded-lg">
                             <TableRow>
                                 <TableHead className="w-12 py-4 px-3 rounded-l-lg"></TableHead>
                                 <TableHead className="py-4 px-3">Student Name</TableHead>
-                                <TableHead className="py-4 px-3">Admission ID</TableHead>
-                                <TableHead className="py-4 px-3">Total</TableHead>
+                                <TableHead className="py-4 px-3">Amount</TableHead>
                                 <TableHead className="py-4 px-3">Status</TableHead>
-                                <TableHead className="py-4 px-3 rounded-r-lg">Due Date</TableHead>
+                                <TableHead className="py-4 px-3 rounded-r-lg">Date</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -41,9 +41,6 @@ function RecentInvoicesTable({ data }: { data: any }) {
                                         <TableCell className="font-medium">
                                             {invoice.student?.name}
                                         </TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                            {invoice.student?.admissionId}
-                                        </TableCell>
                                         <TableCell>
                                             ${invoice.total?.toFixed(2)}
                                         </TableCell>
@@ -51,7 +48,7 @@ function RecentInvoicesTable({ data }: { data: any }) {
                                             {invoice.status}
                                         </TableCell>
                                         <TableCell>
-                                            {new Date(invoice.dueDate).toLocaleDateString()}
+                                            {formatDistanceToNow(new Date(invoice.dueDate))} ago
                                         </TableCell>
                                     </TableRow>
                                 ))

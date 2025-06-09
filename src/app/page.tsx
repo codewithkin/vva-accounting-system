@@ -104,6 +104,8 @@ export default function Dashboard() {
     refetchInterval: 300000, // Refetch every 5 minutes
   });
 
+  console.log("Dashboard data: ", data);
+
   const [timeRange, setTimeRange] = React.useState<string>("30d");
   const [timeFilter, setTimeFilter] = React.useState<string>("month");
 
