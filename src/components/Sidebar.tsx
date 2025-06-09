@@ -15,8 +15,7 @@ export function Sidebar() {
     { name: "dashboard", icon: <Home className="h-5 w-5" /> },
     { name: "students", icon: <Users className="h-5 w-5" /> },
     { name: "invoices", icon: <FileText className="h-5 w-5" /> },
-    { name: "uniforms", icon: <Shirt className="h-5 w-5" /> },
-    { name: "settings", icon: <Settings className="h-5 w-5" /> },
+    { name: "uniforms", icon: <Shirt className="h-5 w-5" /> }
   ];
 
   if (isDesktop) {
