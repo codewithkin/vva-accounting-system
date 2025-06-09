@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import axios from "axios";
 
 interface StudentFormValues {
-    admissionId: string;
     name: string;
     class: string;
     contact: string;
@@ -23,7 +22,7 @@ export default function NewStudentPage() {
             const res = await axios.post(`${process.env.NODE_ENV === "development"
                 ? "http://localhost:8080"
                 : "https://vva-server-397iy.kinsta.app"
-                }/api/students`, student);
+                }/api/accounting/students/new`, student);
             return res.data;
         },
         onSuccess: () => {
@@ -43,7 +42,6 @@ export default function NewStudentPage() {
                 <CardContent>
                     <Formik<StudentFormValues>
                         initialValues={{
-                            admissionId: "",
                             name: "",
                             class: "",
                             contact: "",
@@ -51,7 +49,6 @@ export default function NewStudentPage() {
                         }}
                         validate={(values) => {
                             const errors: Partial<StudentFormValues> = {};
-                            if (!values.admissionId) errors.admissionId = "Required";
                             if (!values.name) errors.name = "Required";
                             if (!values.class) errors.class = "Required";
                             if (!values.contact || !/^\d{4,}$/.test(values.contact)) {
@@ -69,18 +66,6 @@ export default function NewStudentPage() {
                     >
                         {({ errors, touched, isSubmitting }) => (
                             <Form className="space-y-4">
-                                <div>
-                                    <Label htmlFor="admissionId">Admission ID</Label>
-                                    <Field
-                                        as={Input}
-                                        id="admissionId"
-                                        name="admissionId"
-                                        placeholder="VVA-2024-001"
-                                    />
-                                    {touched.admissionId && errors.admissionId && (
-                                        <p className="text-sm text-red-500">{errors.admissionId}</p>
-                                    )}
-                                </div>
 
                                 <div>
                                     <Label htmlFor="name">Full Name</Label>

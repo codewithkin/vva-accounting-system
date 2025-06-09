@@ -57,7 +57,6 @@ interface DashboardData {
   students: Array<{
     id: string;
     name: string;
-    admissionId: string;
     createdAt: string;
   }>;
   invoices: Array<{
