@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Card } from "@/components/ui/card";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { saveAs } from "file-saver";
+import Link from "next/link";
 
 interface Invoice {
     id: string;
@@ -130,6 +131,14 @@ function StudentsPage() {
                 <p className="text-muted-foreground text-sm">
                     View and manage all students enrolled at Vumba View Academy
                 </p>
+                <Button className="md:w-fit" asChild>
+                    <Link href="/students/new">
+                        <span className="flex items-center gap-2">
+                            <Plus className="h-4 w-4" />
+                            Add student
+                        </span>
+                    </Link>
+                </Button>
             </article>
 
             <div className="flex justify-between items-center mb-4">

@@ -20,7 +20,10 @@ interface StudentFormValues {
 export default function NewStudentPage() {
     const mutation = useMutation({
         mutationFn: async (student: StudentFormValues) => {
-            const res = await axios.post("/api/students", student);
+            const res = await axios.post(`${process.env.NODE_ENV === "development"
+                ? "http://localhost:8080"
+                : "https://vva-server-397iy.kinsta.app"
+                }/api/students`, student);
             return res.data;
         },
         onSuccess: () => {
