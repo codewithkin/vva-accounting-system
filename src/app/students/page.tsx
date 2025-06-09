@@ -30,7 +30,6 @@ interface Invoice {
 interface Student {
     id: string;
     name: string;
-    admissionId: string;
     class: string;
     contact: string;
     parentContact: string;
@@ -108,9 +107,8 @@ function StudentsPage() {
 
     const downloadCSV = () => {
         const csvContent = [
-            ["Admission ID", "Name", "Class", "Contact", "Parent Contact"],
+            ["Name", "Class", "Contact", "Parent Contact"],
             ...filteredStudents.map((s) => [
-                s.admissionId,
                 s.name,
                 s.class,
                 s.contact,
@@ -135,7 +133,7 @@ function StudentsPage() {
                     <Link href="/students/new">
                         <span className="flex items-center gap-2">
                             <Plus className="h-4 w-4" />
-                            Add student
+                            New invoice
                         </span>
                     </Link>
                 </Button>
@@ -172,7 +170,6 @@ function StudentsPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Admission ID</TableHead>
                                     <TableHead>Name</TableHead>
                                     <TableHead>Class</TableHead>
                                     <TableHead>Contact</TableHead>
@@ -183,7 +180,6 @@ function StudentsPage() {
                             <TableBody>
                                 {filteredStudents.map((student) => (
                                     <TableRow key={student.id}>
-                                        <TableCell>{student.admissionId}</TableCell>
                                         <TableCell className="font-medium">{student.name}</TableCell>
                                         <TableCell>{student.class}</TableCell>
                                         <TableCell>{student.contact}</TableCell>

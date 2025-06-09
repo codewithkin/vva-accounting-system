@@ -46,6 +46,7 @@ const createInvoice = async (data: {
     studentId: string;
     items: InvoiceItem[];
     dueDate: Date;
+    paymentMethod: string;
 }) => {
     const response = await axios.post(
         `${process.env.NODE_ENV === "development" ? "http://localhost:8080" : "https://vva-server-397iy.kinsta.app"}/api/accounting/invoices/new`,
@@ -65,6 +66,8 @@ const feeTypes = [
     "Other",
 ];
 
+const paymentMethods = ["Card", "Ecocash", "Cash", "Credit"];
+
 export default function CreateInvoicePage() {
     const router = useRouter();
     const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
@@ -72,11 +75,22 @@ export default function CreateInvoicePage() {
     const [items, setItems] = useState<InvoiceItem[]>([
         { feeType: "School Fees", amount: 0 },
     ]);
+    const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
+    // New: State for the search query
+    const [searchQuery, setSearchQuery] = useState<string>("");
 
     const { data: students, isLoading: isLoadingStudents } = useQuery({
         queryKey: ["students"],
         queryFn: fetchStudents,
     });
+
+    // New: Filter students based on search query
+    const filteredStudents = students?.filter((student) =>
+        student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.admissionId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.class.toLowerCase().includes(searchQuery.toLowerCase())
+    ) || [];
+
 
     const mutation = useMutation({
         mutationFn: createInvoice,
@@ -136,6 +150,7 @@ export default function CreateInvoicePage() {
             studentId: selectedStudent,
             items,
             dueDate,
+            paymentMethod,
         });
     };
 
@@ -160,12 +175,26 @@ export default function CreateInvoicePage() {
                                         <SelectValue placeholder="Select a student" />
                                     </SelectTrigger>
                                     <SelectContent>
+                                        {/* New: Search input for students */}
+                                        <div className="px-2 py-1">
+                                            <Input
+                                                placeholder="Search student by name, ID or class..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                className="mb-2"
+                                            />
+                                        </div>
                                         {isLoadingStudents ? (
                                             <SelectItem value="loading" disabled>
                                                 Loading students...
                                             </SelectItem>
+                                        ) : filteredStudents.length === 0 ? (
+                                            <SelectItem value="no-results" disabled>
+                                                No students found.
+                                            </SelectItem>
                                         ) : (
-                                            students?.map((student) => (
+                                            // Display filtered students
+                                            filteredStudents.map((student) => (
                                                 <SelectItem key={student.id} value={student.id}>
                                                     {student.name} ({student.admissionId}) - {student.class}
                                                 </SelectItem>
@@ -200,6 +229,26 @@ export default function CreateInvoicePage() {
                                         />
                                     </PopoverContent>
                                 </Popover>
+                            </div>
+
+                            {/* Payment Method Selection */}
+                            <div className="space-y-2">
+                                <Label htmlFor="paymentMethod">Payment Method</Label>
+                                <Select
+                                    value={paymentMethod}
+                                    onValueChange={setPaymentMethod}
+                                >
+                                    <SelectTrigger id="paymentMethod">
+                                        <SelectValue placeholder="Select payment method" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {paymentMethods.map((method) => (
+                                            <SelectItem key={method} value={method}>
+                                                {method}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
 

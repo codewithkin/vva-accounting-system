@@ -40,7 +40,6 @@ interface Invoice {
     createdAt: string;
     student: {
         name: string;
-        admissionId: string;
     };
     payments: {
         amount: number;
@@ -118,7 +117,6 @@ function InvoicesPage() {
                 return [
                     `INV-${invoice.id.slice(0, 8)}`,
                     `"${invoice.student.name}"`,
-                    invoice.student.admissionId,
                     `"${itemsString}"`,
                     invoice.total,
                     format(new Date(invoice.dueDate), "yyyy-MM-dd"),
@@ -243,9 +241,6 @@ function InvoicesPage() {
                                         <TableCell className="font-medium">INV-{invoice.id.slice(0, 8)}</TableCell>
                                         <TableCell>
                                             <div className="font-medium">{invoice.student.name}</div>
-                                            <div className="text-sm text-muted-foreground">
-                                                {invoice.student.admissionId}
-                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col">
