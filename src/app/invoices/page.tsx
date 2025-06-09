@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Card } from "@/components/ui/card";
-import { FileText, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { FileText, Loader2, AlertCircle, RefreshCw, Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { saveAs } from "file-saver";
 
 interface Invoice {
     id: string;
@@ -81,6 +82,64 @@ function InvoicesPage() {
         queryFn: () => fetchInvoices(page, limit, statusFilter)
     });
 
+    const handleDownloadCSV = async () => {
+        try {
+            // Fetch all invoices with current filters (no pagination)
+            const response = await axios.get(
+                `${process.env.NODE_ENV === "development" ? "http://localhost:8080" : "https://vva-server-397iy.kinsta.app"}/api/accounting/invoices/?limit=0${statusFilter ? `&status=${statusFilter}` : ""}`
+            );
+
+            const data = response.data.data;
+
+            if (!data || data.length === 0) {
+                alert("No invoices to download");
+                return;
+            }
+
+            // Create CSV headers
+            const headers = [
+                "Invoice ID",
+                "Student Name",
+                "Student ID",
+                "Items",
+                "Total Amount",
+                "Due Date",
+                "Status",
+                "Created At"
+            ].join(",");
+
+            // Create CSV rows
+            const rows = data.map((invoice: Invoice) => {
+                const itemsString = invoice.items
+                    .map(item => `${item.name} ($${item.amount})`)
+                    .join("; ");
+
+                return [
+                    `INV-${invoice.id.slice(0, 8)}`,
+                    `"${invoice.student.name}"`,
+                    invoice.student.admissionId,
+                    `"${itemsString}"`,
+                    invoice.total,
+                    format(new Date(invoice.dueDate), "yyyy-MM-dd"),
+                    invoice.status,
+                    format(new Date(invoice.createdAt), "yyyy-MM-dd")
+                ].join(",");
+            });
+
+            // Combine headers and rows
+            const csvContent = [headers, ...rows].join("\n");
+
+            // Create a blob and download
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const filename = `Vumba_Invoices_${statusFilter || "All"}_${format(new Date(), "yyyyMMdd")}.csv`;
+            saveAs(blob, filename);
+
+        } catch (error) {
+            console.error("Error downloading CSV:", error);
+            alert("Failed to download invoices. Please try again.");
+        }
+    };
+
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "Paid":
@@ -103,23 +162,33 @@ function InvoicesPage() {
 
             <Card className="p-4">
                 <div className="flex justify-between items-center mb-4">
-                    <Select
-                        value={statusFilter || "all"}
-                        onValueChange={(value) => {
-                            setStatusFilter(value === "all" ? undefined : value);
-                            setPage(1);
-                        }}
-                    >
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Filter by status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Invoices</SelectItem>
-                            <SelectItem value="Pending">Pending</SelectItem>
-                            <SelectItem value="Paid">Paid</SelectItem>
-                            <SelectItem value="Overdue">Overdue</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                        <Select
+                            value={statusFilter || "all"}
+                            onValueChange={(value) => {
+                                setStatusFilter(value === "all" ? undefined : value);
+                                setPage(1);
+                            }}
+                        >
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Filter by status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Invoices</SelectItem>
+                                <SelectItem value="Pending">Pending</SelectItem>
+                                <SelectItem value="Paid">Paid</SelectItem>
+                                <SelectItem value="Overdue">Overdue</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            variant="outline"
+                            onClick={handleDownloadCSV}
+                            disabled={isLoading || (invoicesData?.pagination.total === 0)}
+                        >
+                            <Download className="h-4 w-4 mr-2" />
+                            Export CSV
+                        </Button>
+                    </div>
                     <Button variant="outline" onClick={() => refetch()}>
                         <RefreshCw className="h-4 w-4 mr-2" />
                         Refresh
