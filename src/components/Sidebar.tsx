@@ -12,7 +12,7 @@ export function Sidebar() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const navItems = [
-    { name: "dashboard", icon: <Home className="h-5 w-5" /> },
+    { name: "/", icon: <Home className="h-5 w-5" /> },
     { name: "students", icon: <Users className="h-5 w-5" /> },
     { name: "invoices", icon: <FileText className="h-5 w-5" /> },
     { name: "uniforms", icon: <Shirt className="h-5 w-5" /> }
