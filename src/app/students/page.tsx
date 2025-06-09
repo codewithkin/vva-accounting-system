@@ -53,7 +53,7 @@ const fetchStudents = async (page = 1, limit = 10): Promise<ApiResponse> => {
     const response = await axios.get(
         `${process.env.NODE_ENV === "development"
             ? "http://localhost:8080"
-            : "https://vva-server-397iy.kinsta.app/"
+            : process.env.BACKEND_URL
         }/api/accounting/students/?page=${page}&limit=${limit}`
     );
     return response.data;

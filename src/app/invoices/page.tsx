@@ -60,7 +60,10 @@ interface ApiResponse {
 }
 
 const fetchInvoices = async (page = 1, limit = 10, status?: string): Promise<ApiResponse> => {
-    const url = `${process.env.NODE_ENV === "development" ? "http://localhost:8080" : "https://vva-server-397iy.kinsta.app"}/api/accounting/invoices/?page=${page}&limit=${limit}${status ? `&status=${status}` : ""
+    const url = `${process.env.NODE_ENV === "development"
+        ? "http://localhost:8080"
+        : process.env.BACKEND_URL
+        }/api/accounting/invoices/?page=${page}&limit=${limit}${status ? `&status=${status}` : ""
         }`;
     const response = await axios.get(url);
     return response.data;
@@ -86,7 +89,10 @@ function InvoicesPage() {
         try {
             // Fetch all invoices with current filters (no pagination)
             const response = await axios.get(
-                `${process.env.NODE_ENV === "development" ? "http://localhost:8080" : "https://vva-server-397iy.kinsta.app"}/api/accounting/invoices/?limit=0${statusFilter ? `&status=${statusFilter}` : ""}`
+                `${process.env.NODE_ENV === "development"
+                    ? "http://localhost:8080"
+                    : process.env.BACKEND_URL
+                }/api/accounting/invoices/?limit=0${statusFilter ? `&status=${statusFilter}` : ""}`
             );
 
             const data = response.data.data;

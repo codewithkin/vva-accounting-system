@@ -49,7 +49,10 @@ const createInvoice = async (data: {
     paymentMethod: string;
 }) => {
     const response = await axios.post(
-        `${process.env.NODE_ENV === "development" ? "http://localhost:8080" : "https://vva-server-397iy.kinsta.app"}/api/accounting/invoices/new`,
+        `${process.env.NODE_ENV === "development"
+            ? "http://localhost:8080"
+            : process.env.BACKEND_URL
+        }/api/accounting/invoices/new`,
         data
     );
     return response.data;
