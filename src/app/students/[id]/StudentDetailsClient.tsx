@@ -10,6 +10,7 @@ import {
     CardHeader,
     CardTitle,
     CardDescription,
+    CardFooter,
 } from "@/components/ui/card";
 import {
     Table,
@@ -131,7 +132,7 @@ export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
     const schoolFeesInvoices = useMemo(() => {
         let filteredInvoices = allInvoices.filter(
             (invoice) =>
-                (invoice.items && Array.isArray(invoice.items) && invoice.items.some(item => item.feeType === "Fees"))
+                (invoice.items && Array.isArray(invoice.items) && invoice.items.some(item => item.feeType === "School Fees"))
         );
 
         const termsForSelectedYear = getTerms(selectedYear);
@@ -209,12 +210,7 @@ export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
             <Card>
                 <CardHeader>
                     <CardTitle>All Invoices</CardTitle>
-                    <CardDescription>
-                        Grand Total:{" "}
-                        <span className="font-bold text-lg">
-                            {formatCurrency(grandTotal)}
-                        </span>
-                    </CardDescription>
+
                 </CardHeader>
                 <CardContent>
                     {allInvoices.length === 0 ? (
@@ -274,6 +270,14 @@ export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
                         </div>
                     )}
                 </CardContent>
+                <CardFooter>
+                    <CardDescription>
+                        Grand Total:{" "}
+                        <span className="font-bold text-lg">
+                            {formatCurrency(grandTotal)}
+                        </span>
+                    </CardDescription>
+                </CardFooter>
             </Card>
 
             {/* Table 2: School Fees Invoices */}
