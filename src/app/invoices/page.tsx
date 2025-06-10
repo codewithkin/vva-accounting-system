@@ -77,7 +77,7 @@ interface ApiResponse {
 const fetchInvoices = async (page = 1, limit = 10, status?: string): Promise<ApiResponse> => {
     const url = `${process.env.NODE_ENV === "development"
         ? "http://localhost:8080"
-        : process.env.BACKEND_URL
+        : "https://vva-server-0chny.kinsta.app"
         }/api/accounting/invoices/?page=${page}&limit=${limit}${status ? `&status=${status}` : ""
         }`;
     const response = await axios.get(url);
@@ -88,7 +88,7 @@ const fetchInvoices = async (page = 1, limit = 10, status?: string): Promise<Api
 const deleteInvoice = async (invoiceId: string) => {
     const url = `${process.env.NODE_ENV === "development"
         ? "http://localhost:8080"
-        : process.env.BACKEND_URL
+        : "https://vva-server-0chny.kinsta.app"
         }/api/accounting/invoices/${invoiceId}`;
     await axios.delete(url);
 };
@@ -136,7 +136,7 @@ function InvoicesPage() {
             const response = await axios.get(
                 `${process.env.NODE_ENV === "development"
                     ? "http://localhost:8080"
-                    : process.env.BACKEND_URL
+                    : "https://vva-server-0chny.kinsta.app"
                 }/api/accounting/invoices/?limit=0${statusFilter ? `&status=${statusFilter}` : ""}`
             );
 
@@ -288,7 +288,7 @@ function InvoicesPage() {
           </div>
         </div>
       `;
-      
+
 
         try {
             // Create a temporary div to render the HTML content

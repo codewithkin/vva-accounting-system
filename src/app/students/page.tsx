@@ -53,7 +53,7 @@ interface ApiResponse {
 const getBaseUrl = () =>
     process.env.NODE_ENV === "development"
         ? "http://localhost:8080"
-        : process.env.BACKEND_URL;
+        :  "https://vva-server-0chny.kinsta.app";
 
 const fetchStudentsByFilter = async (
     filter: "all" | "paid" | "unpaid",

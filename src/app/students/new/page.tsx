@@ -21,7 +21,7 @@ export default function NewStudentPage() {
         mutationFn: async (student: StudentFormValues) => {
             const res = await axios.post(`${process.env.NODE_ENV === "development"
                 ? "http://localhost:8080"
-                : process.env.BACKEND_URL
+                : "https://vva-server-0chny.kinsta.app"
                 }/api/accounting/students/new`, student);
             return res.data;
         },

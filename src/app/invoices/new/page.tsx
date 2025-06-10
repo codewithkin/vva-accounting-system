@@ -47,7 +47,7 @@ interface CreditInvoice {
 const getBaseUrl = () =>
     process.env.NODE_ENV === "development"
         ? "http://localhost:8080"
-        : process.env.BACKEND_URL;
+        : "https://vva-server-0chny.kinsta.app";
 
 const fetchStudents = async (): Promise<Student[]> => {
     const response = await axios.get(`${getBaseUrl()}/api/accounting/students/`);
