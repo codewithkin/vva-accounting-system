@@ -14,6 +14,7 @@ interface StudentFormValues {
     class: string;
     contact: string;
     parentContact: string;
+    fees: number; // <-- NEW: Add fees field
 }
 
 export default function NewStudentPage() {
@@ -46,9 +47,10 @@ export default function NewStudentPage() {
                             class: "",
                             contact: "",
                             parentContact: "",
+                            fees: 130, // <-- NEW: Set initial fees value (matching Prisma default)
                         }}
                         validate={(values) => {
-                            const errors: Partial<StudentFormValues> = {};
+                            const errors: Partial<Record<keyof StudentFormValues, string>> = {};
                             if (!values.name) errors.name = "Required";
                             if (!values.class) errors.class = "Required";
                             if (!values.contact || !/^\d{4,}$/.test(values.contact)) {
@@ -56,6 +58,12 @@ export default function NewStudentPage() {
                             }
                             if (!values.parentContact || !/^\d{4,}$/.test(values.parentContact)) {
                                 errors.parentContact = "Enter a valid number";
+                            }
+                            // <-- NEW: Validation for fees
+                            if (values.fees === undefined || values.fees === null) {
+                                errors.fees = "Required";
+                            } else if (isNaN(values.fees) || values.fees <= 0) {
+                                errors.fees = "Must be a positive number";
                             }
                             return errors;
                         }}
@@ -106,6 +114,21 @@ export default function NewStudentPage() {
                                     />
                                     {touched.parentContact && errors.parentContact && (
                                         <p className="text-sm text-red-500">{errors.parentContact}</p>
+                                    )}
+                                </div>
+
+                                {/* NEW FIELD: Fees */}
+                                <div>
+                                    <Label htmlFor="fees">Termly Fees ($)</Label>
+                                    <Field
+                                        as={Input}
+                                        type="number"
+                                        id="fees"
+                                        name="fees"
+                                        placeholder="e.g., 130"
+                                    />
+                                    {touched.fees && errors.fees && (
+                                        <p className="text-sm text-red-500">{errors.fees}</p>
                                     )}
                                 </div>
 
