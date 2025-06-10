@@ -27,7 +27,7 @@ interface Student {
     name: string;
     admissionId: string;
     class: string;
-    parentContact?: string; // Optional for compatibility
+    parentContact?: string;
 }
 
 interface InvoiceItem {
@@ -106,21 +106,23 @@ export default function CreateInvoicePage() {
         queryFn: fetchStudents,
     });
 
-    const { refetch: refetchCreditInvoices } = useQuery<CreditInvoice[]>({
+    const { data: fetchedCreditInvoices, isLoading: isLoadingCreditInvoices, refetch: refetchCreditInvoices } = useQuery<CreditInvoice[]>({
         queryKey: ["creditInvoices", selectedStudent],
         queryFn: () => fetchCreditInvoicesForStudent(selectedStudent),
         enabled: isFulfillment && !!selectedStudent,
-        onSuccess: (data) => {
-            setCreditInvoices(data);
-            if (data.length > 0 && !selectedCreditInvoiceId) {
-                setSelectedCreditInvoiceId(data[0].id);
-            }
-        },
-        onError: (error) => {
-            console.error("Failed to fetch credit invoices:", error);
-            toast.error("Failed to load outstanding credit invoices.");
-        },
     });
+
+    useEffect(() => {
+        if (fetchedCreditInvoices) {
+            setCreditInvoices(fetchedCreditInvoices);
+            if (fetchedCreditInvoices.length > 0 && !selectedCreditInvoiceId) {
+                setSelectedCreditInvoiceId(fetchedCreditInvoices[0].id);
+            }
+        } else {
+            setCreditInvoices([]);
+            setSelectedCreditInvoiceId("");
+        }
+    }, [fetchedCreditInvoices, selectedCreditInvoiceId]);
 
     useEffect(() => {
         if (isFulfillment && selectedStudent) {
@@ -400,13 +402,17 @@ export default function CreateInvoicePage() {
                                             <Select
                                                 value={selectedCreditInvoiceId}
                                                 onValueChange={setSelectedCreditInvoiceId}
-                                                disabled={mutation.isPending || !selectedStudent || creditInvoices.length === 0}
+                                                disabled={mutation.isPending || !selectedStudent || creditInvoices.length === 0 || isLoadingCreditInvoices}
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select credit invoice" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {creditInvoices.length === 0 ? (
+                                                    {isLoadingCreditInvoices ? (
+                                                        <SelectItem value="loading" disabled>
+                                                            Loading outstanding invoices...
+                                                        </SelectItem>
+                                                    ) : creditInvoices.length === 0 ? (
                                                         <SelectItem value="no-credit-invoices" disabled>
                                                             No outstanding credit invoices
                                                         </SelectItem>
