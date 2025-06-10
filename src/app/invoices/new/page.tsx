@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import axios from "axios";
@@ -27,6 +27,7 @@ interface Student {
     name: string;
     admissionId: string;
     class: string;
+    parentContact?: string; // Optional for compatibility
 }
 
 interface InvoiceItem {
@@ -35,10 +36,26 @@ interface InvoiceItem {
     description?: string;
 }
 
+interface CreditInvoice {
+    id: string;
+    total: number;
+    dueDate: string;
+    status: string;
+    items: InvoiceItem[];
+}
+
+const getBaseUrl = () =>
+    process.env.NODE_ENV === "development"
+        ? "http://localhost:8080"
+        : process.env.BACKEND_URL;
+
 const fetchStudents = async (): Promise<Student[]> => {
-    const response = await axios.get(
-        `${process.env.NODE_ENV === "development" ? "http://localhost:8080" : "https://vva-server-397iy.kinsta.app"}/api/accounting/students/`
-    );
+    const response = await axios.get(`${getBaseUrl()}/api/accounting/students/`);
+    return response.data.data;
+};
+
+const fetchCreditInvoicesForStudent = async (studentId: string): Promise<CreditInvoice[]> => {
+    const response = await axios.get(`${getBaseUrl()}/api/accounting/invoices/student/${studentId}/credit-outstanding`);
     return response.data.data;
 };
 
@@ -47,14 +64,10 @@ const createInvoice = async (data: {
     items: InvoiceItem[];
     dueDate: Date;
     paymentMethod: string;
+    amountDue?: number;
+    linkedInvoiceId?: string;
 }) => {
-    const response = await axios.post(
-        `${process.env.NODE_ENV === "development"
-            ? "http://localhost:8080"
-            : process.env.BACKEND_URL
-        }/api/accounting/invoices/new`,
-        data
-    );
+    const response = await axios.post(`${getBaseUrl()}/api/accounting/invoices/new`, data);
     return response.data;
 };
 
@@ -67,6 +80,7 @@ const feeTypes = [
     "Exam Fees",
     "Project Fees",
     "Other",
+    "Fulfillment",
 ];
 
 const paymentMethods = ["Card", "Ecocash", "Cash", "Credit"];
@@ -79,21 +93,71 @@ export default function CreateInvoicePage() {
         { feeType: "School Fees", amount: 0 },
     ]);
     const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
-    // New: State for the search query
     const [searchQuery, setSearchQuery] = useState<string>("");
+    const [amountDue, setAmountDue] = useState<number | undefined>(undefined);
+    const [creditInvoices, setCreditInvoices] = useState<CreditInvoice[]>([]);
+    const [selectedCreditInvoiceId, setSelectedCreditInvoiceId] = useState<string>("");
+
+    const isCreditPayment = paymentMethod === "Credit";
+    const isFulfillment = items.some(item => item.feeType === "Fulfillment");
 
     const { data: students, isLoading: isLoadingStudents } = useQuery({
         queryKey: ["students"],
         queryFn: fetchStudents,
     });
 
-    // New: Filter students based on search query
+    const { refetch: refetchCreditInvoices } = useQuery<CreditInvoice[]>({
+        queryKey: ["creditInvoices", selectedStudent],
+        queryFn: () => fetchCreditInvoicesForStudent(selectedStudent),
+        enabled: isFulfillment && !!selectedStudent,
+        onSuccess: (data) => {
+            setCreditInvoices(data);
+            if (data.length > 0 && !selectedCreditInvoiceId) {
+                setSelectedCreditInvoiceId(data[0].id);
+            }
+        },
+        onError: (error) => {
+            console.error("Failed to fetch credit invoices:", error);
+            toast.error("Failed to load outstanding credit invoices.");
+        },
+    });
+
+    useEffect(() => {
+        if (isFulfillment && selectedStudent) {
+            refetchCreditInvoices();
+        } else {
+            setCreditInvoices([]);
+            setSelectedCreditInvoiceId("");
+        }
+    }, [isFulfillment, selectedStudent, refetchCreditInvoices]);
+
+    useEffect(() => {
+        if (isCreditPayment) {
+            setAmountDue(calculateTotal());
+        } else {
+            setAmountDue(undefined);
+        }
+    }, [items, isCreditPayment]);
+
+    useEffect(() => {
+        if (isFulfillment && selectedCreditInvoiceId) {
+            const selectedInvoice = creditInvoices.find(inv => inv.id === selectedCreditInvoiceId);
+            if (selectedInvoice) {
+                const newItems = [...items];
+                const fulfillmentItemIndex = newItems.findIndex(item => item.feeType === "Fulfillment");
+                if (fulfillmentItemIndex !== -1) {
+                    newItems[fulfillmentItemIndex].amount = selectedInvoice.total;
+                    setItems(newItems);
+                }
+            }
+        }
+    }, [selectedCreditInvoiceId, creditInvoices, isFulfillment]);
+
     const filteredStudents = students?.filter((student) =>
         student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         student.admissionId.toLowerCase().includes(searchQuery.toLowerCase()) ||
         student.class.toLowerCase().includes(searchQuery.toLowerCase())
     ) || [];
-
 
     const mutation = useMutation({
         mutationFn: createInvoice,
@@ -102,6 +166,7 @@ export default function CreateInvoicePage() {
             router.push("/invoices");
         },
         onError: (error: any) => {
+            console.error("Invoice creation error:", error);
             toast.error(error.response?.data?.error || "Failed to create invoice");
         },
     });
@@ -119,12 +184,16 @@ export default function CreateInvoicePage() {
     const handleItemChange = (index: number, field: keyof InvoiceItem, value: any) => {
         const newItems = [...items];
         newItems[index][field] = value;
+        if (field === "feeType" && value === "Fulfillment") {
+            newItems[index].amount = 0;
+            setSelectedCreditInvoiceId("");
+        }
         setItems(newItems);
     };
 
-    const calculateTotal = () => {
+    function calculateTotal() {
         return items.reduce((sum, item) => sum + (item.amount || 0), 0);
-    };
+    }
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -144,17 +213,33 @@ export default function CreateInvoicePage() {
             return;
         }
 
-        if (items.some(item => item.amount <= 0)) {
-            toast.error("All items must have a positive amount");
+        if (items.some(item => item.amount <= 0 && item.feeType !== "Fulfillment")) {
+            toast.error("All non-fulfillment items must have a positive amount");
             return;
         }
 
-        mutation.mutate({
+        if (isFulfillment) {
+            if (!selectedCreditInvoiceId) {
+                toast.error("Please select a credit invoice to fulfill.");
+                return;
+            }
+            const selectedInvoice = creditInvoices.find(inv => inv.id === selectedCreditInvoiceId);
+            if (!selectedInvoice || items.some(item => item.feeType === "Fulfillment" && item.amount !== selectedInvoice.total)) {
+                toast.error("Fulfillment amount must match the selected credit invoice total.");
+                return;
+            }
+        }
+
+        const invoiceData = {
             studentId: selectedStudent,
             items,
             dueDate,
             paymentMethod,
-        });
+            ...(isCreditPayment && { amountDue: calculateTotal() }),
+            ...(isFulfillment && { linkedInvoiceId: selectedCreditInvoiceId }),
+        };
+
+        mutation.mutate(invoiceData);
     };
 
     return (
@@ -172,13 +257,12 @@ export default function CreateInvoicePage() {
                                 <Select
                                     value={selectedStudent}
                                     onValueChange={setSelectedStudent}
-                                    disabled={isLoadingStudents}
+                                    disabled={isLoadingStudents || mutation.isPending}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select a student" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {/* New: Search input for students */}
                                         <div className="px-2 py-1">
                                             <Input
                                                 placeholder="Search student by name, ID or class..."
@@ -196,7 +280,6 @@ export default function CreateInvoicePage() {
                                                 No students found.
                                             </SelectItem>
                                         ) : (
-                                            // Display filtered students
                                             filteredStudents.map((student) => (
                                                 <SelectItem key={student.id} value={student.id}>
                                                     {student.name} ({student.admissionId}) - {student.class}
@@ -218,6 +301,7 @@ export default function CreateInvoicePage() {
                                                 "w-full justify-start text-left font-normal",
                                                 !dueDate && "text-muted-foreground"
                                             )}
+                                            disabled={mutation.isPending}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
                                             {dueDate ? format(dueDate, "PPP") : <span>Pick a date</span>}
@@ -240,6 +324,7 @@ export default function CreateInvoicePage() {
                                 <Select
                                     value={paymentMethod}
                                     onValueChange={setPaymentMethod}
+                                    disabled={mutation.isPending || isFulfillment}
                                 >
                                     <SelectTrigger id="paymentMethod">
                                         <SelectValue placeholder="Select payment method" />
@@ -253,6 +338,20 @@ export default function CreateInvoicePage() {
                                     </SelectContent>
                                 </Select>
                             </div>
+
+                            {/* Amount Due - Only for Credit Payment */}
+                            {isCreditPayment && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="amountDue">Amount Due</Label>
+                                    <Input
+                                        id="amountDue"
+                                        type="number"
+                                        value={amountDue !== undefined ? amountDue.toFixed(2) : ""}
+                                        readOnly
+                                        className="bg-gray-100 dark:bg-gray-800"
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         {/* Invoice Items */}
@@ -264,6 +363,7 @@ export default function CreateInvoicePage() {
                                     variant="outline"
                                     size="sm"
                                     onClick={handleAddItem}
+                                    disabled={mutation.isPending || isFulfillment}
                                 >
                                     <Plus className="h-4 w-4 mr-2" />
                                     Add Item
@@ -272,13 +372,14 @@ export default function CreateInvoicePage() {
 
                             {items.map((item, index) => (
                                 <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                                    <div className="md:col-span-5 space-y-2">
+                                    <div className="md:col-span-4 space-y-2">
                                         <Label htmlFor={`feeType-${index}`}>Fee Type</Label>
                                         <Select
                                             value={item.feeType}
                                             onValueChange={(value) =>
                                                 handleItemChange(index, "feeType", value)
                                             }
+                                            disabled={mutation.isPending}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Select fee type" />
@@ -293,7 +394,35 @@ export default function CreateInvoicePage() {
                                         </Select>
                                     </div>
 
-                                    <div className="md:col-span-4 space-y-2">
+                                    {item.feeType === "Fulfillment" && (
+                                        <div className="md:col-span-5 space-y-2">
+                                            <Label htmlFor={`creditInvoice-${index}`}>Credit Invoice</Label>
+                                            <Select
+                                                value={selectedCreditInvoiceId}
+                                                onValueChange={setSelectedCreditInvoiceId}
+                                                disabled={mutation.isPending || !selectedStudent || creditInvoices.length === 0}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select credit invoice" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {creditInvoices.length === 0 ? (
+                                                        <SelectItem value="no-credit-invoices" disabled>
+                                                            No outstanding credit invoices
+                                                        </SelectItem>
+                                                    ) : (
+                                                        creditInvoices.map((inv) => (
+                                                            <SelectItem key={inv.id} value={inv.id}>
+                                                                Invoice ID: {inv.id.substring(0, 6)}... (Due: {format(new Date(inv.dueDate), "PPP")}, Total: ${inv.total.toFixed(2)})
+                                                            </SelectItem>
+                                                        ))
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+
+                                    <div className={`space-y-2 ${item.feeType === "Fulfillment" ? "md:col-span-2" : "md:col-span-5"}`}>
                                         <Label htmlFor={`amount-${index}`}>Amount</Label>
                                         <Input
                                             id={`amount-${index}`}
@@ -304,18 +433,8 @@ export default function CreateInvoicePage() {
                                             }
                                             min="0"
                                             step="0.01"
-                                        />
-                                    </div>
-
-                                    <div className="md:col-span-2 space-y-2">
-                                        <Label htmlFor={`description-${index}`}>Description</Label>
-                                        <Input
-                                            id={`description-${index}`}
-                                            value={item.description || ""}
-                                            onChange={(e) =>
-                                                handleItemChange(index, "description", e.target.value)
-                                            }
-                                            placeholder="Optional"
+                                            disabled={mutation.isPending || item.feeType === "Fulfillment"}
+                                            className={item.feeType === "Fulfillment" ? "bg-gray-100 dark:bg-gray-800" : ""}
                                         />
                                     </div>
 
@@ -325,7 +444,7 @@ export default function CreateInvoicePage() {
                                             variant="destructive"
                                             size="sm"
                                             onClick={() => handleRemoveItem(index)}
-                                            disabled={items.length <= 1}
+                                            disabled={items.length <= 1 || mutation.isPending || isFulfillment}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
@@ -339,7 +458,7 @@ export default function CreateInvoicePage() {
                             <div className="space-y-2">
                                 <Label>Total Amount</Label>
                                 <div className="text-2xl font-bold">
-                                    ${calculateTotal().toLocaleString()}
+                                    ${calculateTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </div>
                             </div>
                         </div>
@@ -350,6 +469,7 @@ export default function CreateInvoicePage() {
                                 type="button"
                                 variant="outline"
                                 onClick={() => router.push("/invoices")}
+                                disabled={mutation.isPending}
                             >
                                 Cancel
                             </Button>
