@@ -17,6 +17,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { saveAs } from "file-saver";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Invoice {
     id: string;
@@ -37,6 +38,7 @@ interface Student {
     invoices: Invoice[];
     uniforms: any[];
     arrears?: number;
+    fees?: number; // Added for CSV export and arrears calculation
 }
 
 interface ApiResponse {
@@ -53,22 +55,22 @@ interface ApiResponse {
 const getBaseUrl = () =>
     process.env.NODE_ENV === "development"
         ? "http://localhost:8080"
-        :  "https://vva-server-0chny.kinsta.app";
+        : "https://vva-server-0chny.kinsta.app";
 
 const fetchStudentsByFilter = async (
     filter: "all" | "paid" | "unpaid",
     page: number,
     limit: number
-): Promise<Student[] | ApiResponse> => {
+): Promise<ApiResponse> => {
     let url = `${getBaseUrl()}/api/accounting/students`;
 
     if (filter === "unpaid") {
-        url = `${getBaseUrl()}/api/accounting/students/unpaid`;
-        const response = await axios.get<Student[]>(url);
+        url = `${getBaseUrl()}/api/accounting/students/?filter=unpaid`;
+        const response = await axios.get<ApiResponse>(url);
         return response.data;
     } else if (filter === "paid") {
-        url = `${getBaseUrl()}/api/accounting/students/paid`;
-        const response = await axios.get<Student[]>(url);
+        url = `${getBaseUrl()}/api/accounting/students/?filter=paid`;
+        const response = await axios.get<ApiResponse>(url);
         return response.data;
     } else {
         url = `${getBaseUrl()}/api/accounting/students/?page=${page}&limit=${limit}`;
@@ -95,44 +97,97 @@ function StudentsPage() {
     const [filter, setFilter] = React.useState<"all" | "paid" | "unpaid">("all");
     const limit = 10;
     const termForDisplay = getCurrentTermForDisplay();
+    const router = useRouter();
 
     const {
         data,
         isLoading,
         isError,
         error,
-    } = useQuery<Student[] | ApiResponse>({
+    } = useQuery<ApiResponse>({
         queryKey: ["students", page, filter],
-        queryFn: () => fetchStudentsByFilter(filter, page, limit)
+        queryFn: () => fetchStudentsByFilter(filter, page, limit),
     });
 
-    const studentsList: Student[] = Array.isArray(data) ? data : (data?.data || []);
-    const paginationInfo = !Array.isArray(data) ? data?.pagination : undefined;
+    // Term logic for filtering and arrears calculation
+    const now = new Date();
+    const year = now.getFullYear();
+    const terms = [
+        { start: new Date(`${year}-01-14`), end: new Date(`${year}-04-10`) },
+        { start: new Date(`${year}-05-13`), end: new Date(`${year}-08-07`) },
+        { start: new Date(`${year}-09-09`), end: new Date(`${year}-12-01`) },
+    ];
+    const currentTerm = terms.find((t) => now >= t.start && now <= t.end) ?? terms[2];
+
+    const studentsList: Student[] = React.useMemo(() => {
+        if (!data?.data) return [];
+
+        let filtered = data.data;
+
+        if (filter === "paid" || filter === "unpaid") {
+            filtered = filtered.filter((student) => {
+                const hasPaid = student.invoices.some((inv: any) => {
+                    const itemFeeType = inv.items?.feeType || (Array.isArray(inv.items) && inv.items[0]?.feeType);
+                    const d = new Date(inv.dueDate);
+                    return (
+                        itemFeeType === "Fees" &&
+                        inv.status === "Paid" &&
+                        d >= currentTerm.start &&
+                        d <= currentTerm.end
+                    );
+                });
+                return filter === "paid" ? hasPaid : !hasPaid;
+            });
+        }
+
+        return filtered.map(student => {
+            let arrears = 0;
+            if (filter === "unpaid") {
+                const hasPaidThisTerm = student.invoices.some((inv: any) => {
+                    const itemFeeType = inv.items?.feeType || (Array.isArray(inv.items) && inv.items[0]?.feeType);
+                    const d = new Date(inv.dueDate);
+                    return (
+                        itemFeeType === "Fees" &&
+                        inv.status === "Paid" &&
+                        d >= currentTerm.start &&
+                        d <= currentTerm.end
+                    );
+                });
+                if (!hasPaidThisTerm) {
+                    const paidAmountForCurrentTermFees = student.invoices
+                        .filter((inv: any) => {
+                            const itemFeeType = inv.items?.feeType || (Array.isArray(inv.items) && inv.items[0]?.feeType);
+                            const d = new Date(inv.dueDate);
+                            return itemFeeType === "Fees" && d >= currentTerm.start && d <= currentTerm.end;
+                        })
+                        .reduce((sum, inv) => sum + (inv.payments?.reduce((pSum: number, p: any) => pSum + p.amount, 0) || 0), 0);
+
+                    const feesDueForCurrentTerm = student.fees || 0;
+
+                    if (feesDueForCurrentTerm > paidAmountForCurrentTermFees) {
+                        arrears = feesDueForCurrentTerm - paidAmountForCurrentTermFees;
+                    }
+                }
+            }
+            return { ...student, arrears };
+        });
+    }, [data, filter, currentTerm]);
+
+    const paginationInfo = data?.pagination;
 
     const downloadCSV = async () => {
         let studentsToExport: Student[] = [];
-        if (filter === "all" && paginationInfo) {
-            const allPagesPromises = [];
-            for (let i = 1; i <= paginationInfo.totalPages; i++) {
-                allPagesPromises.push(fetchStudentsByFilter(filter, i, paginationInfo.total));
-            }
-            const allResponses = await Promise.all(allPagesPromises);
-            studentsToExport = allResponses.flatMap(res => (res as ApiResponse).data);
-        } else {
-            studentsToExport = studentsList;
-            if (filter === "all") {
-                const response = await fetchStudentsByFilter("all", 1, 1000000);
-                studentsToExport = (response as ApiResponse).data;
-            }
-        }
+        const response = await fetchStudentsByFilter(filter, 1, paginationInfo?.total || 1000000);
+        studentsToExport = (response as ApiResponse).data;
 
         const csvContent = [
-            ["Name", "Class", "Contact", "Parent Contact", "Arrears"],
+            ["Name", "Class", "Contact", "Parent Contact", "Termly Fees", "Arrears"],
             ...studentsToExport.map((s) => [
                 s.name,
                 s.class,
                 s.contact,
                 s.parentContact,
+                s.fees !== undefined ? `$${s.fees.toFixed(2)}` : "N/A",
                 filter === "unpaid" && s.arrears !== undefined ? `$${s.arrears.toFixed(2)}` : "N/A",
             ]),
         ]
@@ -196,12 +251,16 @@ function StudentsPage() {
                                     <TableHead>Contact</TableHead>
                                     <TableHead>Parent Contact</TableHead>
                                     <TableHead>Enrolled On</TableHead>
-                                    {filter === "unpaid" && <TableHead>Arrears</TableHead>}
+                                    {filter === "unpaid" && <TableHead>Arrears (This Term)</TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {studentsList.map((student) => (
-                                    <TableRow key={student.id}>
+                                    <TableRow
+                                        key={student.id}
+                                        onClick={() => router.push(`/students/${student.id}`)}
+                                        className="cursor-pointer hover:bg-gray-100"
+                                    >
                                         <TableCell className="font-medium">{student.name}</TableCell>
                                         <TableCell>{student.class}</TableCell>
                                         <TableCell>{student.contact}</TableCell>

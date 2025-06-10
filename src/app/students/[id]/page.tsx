@@ -1,374 +1,71 @@
-"use client";
+// src/app/students/[id]/page.tsx
+// This is now a Server Component by default (no "use client")
 
-import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-} from "@/components/ui/card";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
-import { Input } from "@/components/ui/input";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { useState, useMemo } from "react";
-import { Label } from "@/components/ui/label";
+// Removed client-side imports
+// import { useParams } from "next/navigation";
+// import { useQuery } from "@tanstack/react-query";
+// import { useState, useMemo } from "react";
+// All client-side logic is now in StudentDetailsClient.tsx
 
-// --- Type Definitions (Match your Prisma models closely) ---
-interface Payment {
-    id: string;
-    amount: number;
-    method: string;
-    date: string; // Assuming ISO string from backend
-    createdAt: string;
-}
+import axios from "axios"; // axios is still needed for generateStaticParams
+import { StudentDetailsClient } from "./StudentDetailsClient"; // NEW: Import the client component
 
-interface InvoiceItem {
-    feeType: string;
-    amount: number;
-    description?: string;
-}
-
-interface Invoice {
-    id: string;
-    studentId: string;
-    items: InvoiceItem[]; // Will be JSON, so type it as array of InvoiceItem
-    total: number;
-    createdAt: string; // Assuming ISO string from backend
-    dueDate: string; // Assuming ISO string from backend
-    status: string;
-    payments: Payment[];
-}
-
+// --- Type Definitions (Needed for generateStaticParams and props) ---
+// Define these here or import them from a shared types file
 interface Student {
     id: string;
     name: string;
-    class: string;
-    contact: string;
-    parentContact: string;
-    fees: number; // New field
-    createdAt: string;
-    invoices: Invoice[];
-    uniforms: any[]; // You might want to define this type fully later
+    // ... other student fields needed for generateStaticParams, though only 'id' is strictly necessary
 }
 
-// --- Helper Functions ---
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-ZW", {
-        style: "currency",
-        currency: "USD", // Assuming USD, adjust if needed
-    }).format(amount);
-};
+interface ApiResponse {
+    success: boolean;
+    data: Student[];
+    pagination?: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    };
+}
 
+// --- Helper Function for Base URL (Needed for generateStaticParams) ---
 const getBaseUrl = () =>
     process.env.NODE_ENV === "development"
         ? "http://localhost:8080"
         : "https://vva-server-0chny.kinsta.app";
 
-// --- Term Definitions ---
-const getTerms = (year: number) => [
-    { name: "Term 1", start: new Date(`${year}-01-14`), end: new Date(`${year}-04-10`) },
-    { name: "Term 2", start: new Date(`${year}-05-13`), end: new Date(`${year}-08-07`) },
-    { name: "Term 3", start: new Date(`${year}-09-09`), end: new Date(`${year}-12-01`) },
-];
 
-export default function StudentDetailPage() {
-    const params = useParams();
-    const studentId = params.id as string;
-
-    const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: 5 }, (_, i) => currentYear - i); // Current year and 4 previous years
-
-    const [selectedTerm, setSelectedTerm] = useState<string>("all"); // "all", "Term 1", "Term 2", "Term 3"
-    const [selectedYear, setSelectedYear] = useState<number>(currentYear);
-
-    const {
-        data: studentData,
-        isLoading,
-        isError,
-        error,
-    } = useQuery<Student, Error>({
-        queryKey: ["student", studentId],
-        queryFn: async () => {
-            const res = await axios.get(`${getBaseUrl()}/api/accounting/students/${studentId}`);
-            // Manually parse 'items' JSON field in invoices
-            const student: Student = {
-                ...res.data.data,
-                invoices: res.data.data.invoices.map((invoice: Invoice) => ({
-                    ...invoice,
-                    items: invoice.items as InvoiceItem[], // Cast JSON to correct type
-                })),
-            };
-            return student;
-        },
-        enabled: !!studentId, // Only run query if studentId is available
-    });
-
-    if (isLoading) {
-        return <div className="p-8 text-center">Loading student details...</div>;
-    }
-
-    if (isError) {
-        return (
-            <div className="p-8 text-center text-red-600">
-                Error loading student: {error?.message || "Unknown error"}
-            </div>
-        );
-    }
-
-    if (!studentData) {
-        return <div className="p-8 text-center">Student not found.</div>;
-    }
-
-    const allInvoices = studentData.invoices || [];
-
-    // Calculate Grand Total for ALL invoices
-    const grandTotal = allInvoices.reduce((sum, invoice) => sum + invoice.total, 0);
-
-    // --- School Fees Invoices Logic ---
-    const schoolFeesInvoices = useMemo(() => {
-        let filteredInvoices = allInvoices.filter(
-            (invoice) =>
-                (invoice.items && Array.isArray(invoice.items) && invoice.items.some(item => item.feeType === "Fees"))
-        );
-
-        const termsForSelectedYear = getTerms(selectedYear);
-
-        if (selectedTerm !== "all") {
-            const term = termsForSelectedYear.find(t => t.name === selectedTerm);
-            if (term) {
-                filteredInvoices = filteredInvoices.filter(invoice => {
-                    const invoiceDate = new Date(invoice.createdAt); // Use createdAt or dueDate for term filtering
-                    return invoiceDate >= term.start && invoiceDate <= term.end;
-                });
-            }
-        }
-
-        // You might also want to implicitly filter by year if terms are year-specific
-        // The current term filtering already handles this as term dates are year-bound.
-
-        return filteredInvoices;
-    }, [allInvoices, selectedTerm, selectedYear]);
-
-    // Calculate total for filtered school fees invoices
-    const schoolFeesTotal = schoolFeesInvoices.reduce((sum, invoice) => sum + invoice.total, 0);
+// The default export for the page is now a Server Component
+export default function StudentDetailPage({ params }: { params: { id: string } }) {
+    // We pass the id from the server component's params to the client component
+    const studentId = params.id;
 
     return (
-        <div className="p-8 space-y-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Student Details</CardTitle>
-                    <CardDescription>Information about {studentData.name}</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <strong>Full Name:</strong> {studentData.name}
-                    </div>
-                    <div>
-                        <strong>Class:</strong> {studentData.class}
-                    </div>
-                    <div>
-                        <strong>Student Contact:</strong> {studentData.contact}
-                    </div>
-                    <div>
-                        <strong>Parent Contact:</strong> {studentData.parentContact}
-                    </div>
-                    <div>
-                        <strong>Default Termly Fees:</strong> {formatCurrency(studentData.fees)}
-                    </div>
-                    <div>
-                        <strong>Admission Date:</strong>{" "}
-                        {format(new Date(studentData.createdAt), "PPP")}
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Table 1: All Invoices */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>All Invoices</CardTitle>
-                    <CardDescription>
-                        Grand Total:{" "}
-                        <span className="font-bold text-lg">
-                            {formatCurrency(grandTotal)}
-                        </span>
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {allInvoices.length === 0 ? (
-                        <p className="text-center text-gray-500">No invoices found for this student.</p>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Invoice ID</TableHead>
-                                        <TableHead>Created At</TableHead>
-                                        <TableHead>Due Date</TableHead>
-                                        <TableHead>Items</TableHead>
-                                        <TableHead>Total</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Payments Made</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {allInvoices.map((invoice) => (
-                                        <TableRow key={invoice.id}>
-                                            <TableCell className="font-medium">{invoice.id.substring(0, 8)}...</TableCell>
-                                            <TableCell>{format(new Date(invoice.createdAt), "PPP")}</TableCell>
-                                            <TableCell>{format(new Date(invoice.dueDate), "PPP")}</TableCell>
-                                            <TableCell>
-                                                {invoice.items && Array.isArray(invoice.items) && invoice.items.length > 0 ? (
-                                                    invoice.items.map((item, index) => (
-                                                        <div key={index}>
-                                                            {item.feeType} ({formatCurrency(item.amount)})
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    "N/A"
-                                                )}
-                                            </TableCell>
-                                            <TableCell>{formatCurrency(invoice.total)}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={invoice.status === "Paid" ? "default" : "destructive"}>
-                                                    {invoice.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                {invoice.payments && invoice.payments.length > 0 ? (
-                                                    invoice.payments.map((payment, index) => (
-                                                        <div key={payment.id}>
-                                                            {formatCurrency(payment.amount)} ({payment.method})
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    "No Payments"
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            {/* Table 2: School Fees Invoices */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>School Fees Invoices</CardTitle>
-                    <CardDescription>
-                        Total for filtered fees:{" "}
-                        <span className="font-bold text-lg">
-                            {formatCurrency(schoolFeesTotal)}
-                        </span>
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                        <div className="flex-1">
-                            <Label htmlFor="year-filter">Filter by Year</Label>
-                            <Select
-                                value={String(selectedYear)}
-                                onValueChange={(value) => setSelectedYear(parseInt(value))}
-                            >
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select Year" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {years.map((year) => (
-                                        <SelectItem key={year} value={String(year)}>
-                                            {year}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="flex-1">
-                            <Label htmlFor="term-filter">Filter by Term</Label>
-                            <Select
-                                value={selectedTerm}
-                                onValueChange={(value) => setSelectedTerm(value)}
-                            >
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select Term" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Terms</SelectItem>
-                                    {getTerms(selectedYear).map((term) => (
-                                        <SelectItem key={term.name} value={term.name}>
-                                            {term.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
-                    {schoolFeesInvoices.length === 0 ? (
-                        <p className="text-center text-gray-500">No school fees invoices found for the selected filters.</p>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Invoice ID</TableHead>
-                                        <TableHead>Created At</TableHead>
-                                        <TableHead>Due Date</TableHead>
-                                        <TableHead>Total</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Payments Made</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {schoolFeesInvoices.map((invoice) => (
-                                        <TableRow key={invoice.id}>
-                                            <TableCell className="font-medium">{invoice.id.substring(0, 8)}...</TableCell>
-                                            <TableCell>{format(new Date(invoice.createdAt), "PPP")}</TableCell>
-                                            <TableCell>{format(new Date(invoice.dueDate), "PPP")}</TableCell>
-                                            <TableCell>{formatCurrency(invoice.total)}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={invoice.status === "Paid" ? "default" : "destructive"}>
-                                                    {invoice.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                {invoice.payments && invoice.payments.length > 0 ? (
-                                                    invoice.payments.map((payment, index) => (
-                                                        <div key={payment.id}>
-                                                            {formatCurrency(payment.amount)} ({payment.method})
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    "No Payments"
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
+        // Render the Client Component, passing the necessary props
+        <StudentDetailsClient studentId={studentId} />
     );
+}
+
+
+// generateStaticParams function for static export (runs on server at build time)
+export async function generateStaticParams() {
+    try {
+        const baseUrl = getBaseUrl(); // Reuse getBaseUrl
+
+        // Fetch all students from your Express.js backend.
+        // Request a large limit to get all students for static generation.
+        const response = await axios.get<ApiResponse>(`${baseUrl}/api/accounting/students?limit=999999`);
+
+        const students = response.data.data;
+
+        // Return an array of objects for the dynamic segments
+        return students.map((student) => ({
+            id: student.id,
+        }));
+    } catch (error: any) {
+        console.error("Failed to generate static params for students from backend:", error.message || error);
+        // Crucial: Your backend must be running and accessible during `next build` for this to work.
+        throw new Error(`Failed to fetch student IDs from backend during build: ${error.message || 'Unknown error'}`);
+    }
 }
