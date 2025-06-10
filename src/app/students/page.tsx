@@ -151,7 +151,7 @@ function StudentsPage() {
                     View and manage all students enrolled at Vumba View Academy
                 </p>
                 <Button className="md:w-fit" asChild>
-                    <Link href="/accounting/invoices/new">
+                    <Link href="/students/new">
                         <span className="flex items-center gap-2">
                             <Plus className="h-4 w-4" />
                             Add Student
