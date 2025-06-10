@@ -1,3 +1,4 @@
+// src/app/students/page.tsx
 "use client";
 
 import React from "react";
@@ -18,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { saveAs } from "file-saver";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useStudentStore } from "@/stores/studentsStore";
 
 interface Invoice {
     id: string;
@@ -98,6 +100,9 @@ function StudentsPage() {
     const limit = 10;
     const termForDisplay = getCurrentTermForDisplay();
     const router = useRouter();
+
+    // Access the Zustand store for selectedStudentId and its setter
+    const setSelectedStudentId = useStudentStore((state) => state.setSelectedStudentId);
 
     const {
         data,
@@ -198,6 +203,13 @@ function StudentsPage() {
         saveAs(blob, `students-${filter}-${termForDisplay.name}.csv`);
     };
 
+    const handleStudentClick = (studentId: string) => {
+        // Update the Zustand store with the selected student ID
+        setSelectedStudentId(studentId);
+        // Navigate to the new details page
+        router.push("/students/details");
+    };
+
     return (
         <div className="p-4">
             <article className="flex flex-col mb-4">
@@ -258,7 +270,7 @@ function StudentsPage() {
                                 {studentsList.map((student) => (
                                     <TableRow
                                         key={student.id}
-                                        onClick={() => router.push(`/students/${student.id}`)}
+                                        onClick={() => handleStudentClick(student.id)} // Updated onClick handler
                                         className="cursor-pointer hover:bg-gray-100"
                                     >
                                         <TableCell className="font-medium">{student.name}</TableCell>

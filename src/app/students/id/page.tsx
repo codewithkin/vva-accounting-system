@@ -1,17 +1,6 @@
-// src/app/students/[id]/page.tsx
-// This is now a Server Component by default (no "use client")
-
-// Removed client-side imports
-// import { useParams } from "next/navigation";
-// import { useQuery } from "@tanstack/react-query";
-// import { useState, useMemo } from "react";
-// All client-side logic is now in StudentDetailsClient.tsx
-
 import axios from "axios"; // axios is still needed for generateStaticParams
-import { StudentDetailsClient } from "./StudentDetailsClient"; // NEW: Import the client component
+import { StudentDetailsClient } from "../details/StudentDetailsClient"; // NEW: Import the client component
 
-// --- Type Definitions (Needed for generateStaticParams and props) ---
-// Define these here or import them from a shared types file
 interface Student {
     id: string;
     name: string;
@@ -41,6 +30,8 @@ export default function StudentDetailPage({ params }: { params: { id: string } }
     // We pass the id from the server component's params to the client component
     const studentId = params.id;
 
+    console.log("Student id:", studentId);
+
     return (
         // Render the Client Component, passing the necessary props
         <StudentDetailsClient studentId={studentId} />
@@ -58,6 +49,10 @@ export async function generateStaticParams() {
         const response = await axios.get<ApiResponse>(`${baseUrl}/api/accounting/students?limit=999999`);
 
         const students = response.data.data;
+
+        students.map((student) => {
+            console.log(student.id);
+        })
 
         // Return an array of objects for the dynamic segments
         return students.map((student) => ({

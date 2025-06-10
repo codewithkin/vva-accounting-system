@@ -1,7 +1,8 @@
 // src/app/students/[id]/StudentDetailsClient.tsx
-"use client";
+// (No changes needed to the content of this file from the previous version)
 
-import { useParams } from "next/navigation";
+"use client"; // Marks this as a Client Component
+
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import {
@@ -96,8 +97,6 @@ interface StudentDetailsClientProps {
 }
 
 export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
-    // --- ALL HOOK CALLS GO HERE, UNCONDITIONALLY ---
-
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
@@ -112,6 +111,7 @@ export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
     } = useQuery<Student, Error>({
         queryKey: ["student", studentId],
         queryFn: async () => {
+            // Fetch student details from your backend using the studentId
             const res = await axios.get(`${getBaseUrl()}/api/accounting/students/${studentId}`);
             const student: Student = {
                 ...res.data.data,
@@ -122,8 +122,14 @@ export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
             };
             return student;
         },
+        // The query is enabled only when studentId is available
         enabled: !!studentId,
+        // Add a staleTime if you want to avoid re-fetching on every focus
+        // staleTime: 1000 * 60 * 5, // 5 minutes
     });
+
+    console.log("Client Component - Student ID prop:", studentId);
+
 
     // Calculate allInvoices and schoolFeesInvoices using useMemo.
     // Ensure studentData is safely accessed for these calculations if it can be undefined initially.
@@ -150,8 +156,6 @@ export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
         return filteredInvoices;
     }, [allInvoices, selectedTerm, selectedYear]);
 
-    // --- END OF HOOK CALLS ---
-
     // --- CONDITIONAL RETURNS (AFTER ALL HOOKS ARE CALLED) ---
     if (isLoading) {
         return <div className="p-8 text-center">Loading student details...</div>;
@@ -166,7 +170,8 @@ export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
     }
 
     if (!studentData) {
-        return <div className="p-8 text-center">Student not found.</div>;
+        // This case might occur if studentId is not valid or no data is returned
+        return <div className="p-8 text-center">Student not found or invalid ID.</div>;
     }
 
     // --- REST OF THE COMPONENT RENDERING LOGIC ---
@@ -210,7 +215,6 @@ export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
             <Card>
                 <CardHeader>
                     <CardTitle>All Invoices</CardTitle>
-
                 </CardHeader>
                 <CardContent>
                     {allInvoices.length === 0 ? (
@@ -270,8 +274,8 @@ export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
                         </div>
                     )}
                 </CardContent>
-                <CardFooter>
-                    <CardDescription>
+                <CardFooter className="w-full">
+                    <CardDescription className="w-full justify-between items-center flex">
                         Grand Total:{" "}
                         <span className="font-bold text-lg">
                             {formatCurrency(grandTotal)}
@@ -284,12 +288,6 @@ export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
             <Card>
                 <CardHeader>
                     <CardTitle>School Fees Invoices</CardTitle>
-                    <CardDescription>
-                        Total for filtered fees:{" "}
-                        <span className="font-bold text-lg">
-                            {formatCurrency(schoolFeesTotal)}
-                        </span>
-                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="flex flex-col sm:flex-row gap-4 mb-4">
@@ -377,6 +375,14 @@ export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
                         </div>
                     )}
                 </CardContent>
+                <CardFooter>
+                    <CardDescription className="w-full justify-between items-center flex">
+                        Total for filtered fees:{" "}
+                        <span className="font-bold text-lg">
+                            {formatCurrency(schoolFeesTotal)}
+                        </span>
+                    </CardDescription>
+                </CardFooter>
             </Card>
         </div>
     );
