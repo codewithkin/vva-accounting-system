@@ -93,7 +93,7 @@ function StudentsPage() {
             const hasFeesInvoiceThisTerm = student.invoices.some((inv) => {
                 const dueDate = new Date(inv.dueDate);
                 return (
-                    inv.items?.feeType === "Fees" &&
+                    inv.items?.feeType === "Fees" ||
                     inv.status === "Paid" &&
                     dueDate >= term.start &&
                     dueDate <= term.end
