@@ -36,12 +36,13 @@ interface Student {
     createdAt: string;
     invoices: Invoice[];
     uniforms: any[];
+    arrears?: number;
 }
 
 interface ApiResponse {
     success: boolean;
     data: Student[];
-    pagination: {
+    pagination?: {
         total: number;
         page: number;
         limit: number;
@@ -49,25 +50,43 @@ interface ApiResponse {
     };
 }
 
-const fetchStudents = async (page = 1, limit = 10): Promise<ApiResponse> => {
-    const response = await axios.get(
-        `${process.env.NODE_ENV === "development"
-            ? "http://localhost:8080"
-            : process.env.BACKEND_URL
-        }/api/accounting/students/?page=${page}&limit=${limit}`
-    );
-    return response.data;
+const getBaseUrl = () =>
+    process.env.NODE_ENV === "development"
+        ? "http://localhost:8080"
+        : process.env.BACKEND_URL;
+
+const fetchStudentsByFilter = async (
+    filter: "all" | "paid" | "unpaid",
+    page: number,
+    limit: number
+): Promise<Student[] | ApiResponse> => {
+    let url = `${getBaseUrl()}/api/accounting/students`;
+
+    if (filter === "unpaid") {
+        url = `${getBaseUrl()}/api/accounting/students/unpaid`;
+        const response = await axios.get<Student[]>(url);
+        return response.data;
+    } else if (filter === "paid") {
+        url = `${getBaseUrl()}/api/accounting/students/paid`;
+        const response = await axios.get<Student[]>(url);
+        return response.data;
+    } else {
+        url = `${getBaseUrl()}/api/accounting/students/?page=${page}&limit=${limit}`;
+        const response = await axios.get<ApiResponse>(url);
+        return response.data;
+    }
 };
 
-function getCurrentTerm(): { start: Date; end: Date } {
+function getCurrentTermForDisplay(): { start: Date; end: Date; name: string } {
     const now = new Date();
     const year = now.getFullYear();
+
     if (now >= new Date(`${year}-01-14`) && now <= new Date(`${year}-04-10`)) {
-        return { start: new Date(`${year}-01-14`), end: new Date(`${year}-04-10`) };
+        return { start: new Date(`${year}-01-14`), end: new Date(`${year}-04-10`), name: "Term 1" };
     } else if (now >= new Date(`${year}-05-13`) && now <= new Date(`${year}-08-07`)) {
-        return { start: new Date(`${year}-05-13`), end: new Date(`${year}-08-07`) };
+        return { start: new Date(`${year}-05-13`), end: new Date(`${year}-08-07`), name: "Term 2" };
     } else {
-        return { start: new Date(`${year}-09-09`), end: new Date(`${year}-12-01`) };
+        return { start: new Date(`${year}-09-09`), end: new Date(`${year}-12-01`), name: "Term 3" };
     }
 }
 
@@ -75,51 +94,53 @@ function StudentsPage() {
     const [page, setPage] = React.useState(1);
     const [filter, setFilter] = React.useState<"all" | "paid" | "unpaid">("all");
     const limit = 10;
-    const term = getCurrentTerm();
+    const termForDisplay = getCurrentTermForDisplay();
 
     const {
-        data: studentsData,
+        data,
         isLoading,
         isError,
         error,
-    } = useQuery<ApiResponse>({
-        queryKey: ["students", page],
-        queryFn: () => fetchStudents(page, limit),
+    } = useQuery<Student[] | ApiResponse>({
+        queryKey: ["students", page, filter],
+        queryFn: () => fetchStudentsByFilter(filter, page, limit)
     });
 
-    const filteredStudents = React.useMemo(() => {
-        if (!studentsData?.data) return [];
-        return studentsData.data.filter((student) => {
-            const hasFeesInvoiceThisTerm = student.invoices.some((inv) => {
-                const dueDate = new Date(inv.dueDate);
-                return (
-                    inv.items?.feeType === "Fees" ||
-                    inv.status === "Paid" &&
-                    dueDate >= term.start &&
-                    dueDate <= term.end
-                );
-            });
-            if (filter === "paid") return hasFeesInvoiceThisTerm;
-            if (filter === "unpaid") return !hasFeesInvoiceThisTerm;
-            return true;
-        });
-    }, [studentsData, filter, term]);
+    const studentsList: Student[] = Array.isArray(data) ? data : (data?.data || []);
+    const paginationInfo = !Array.isArray(data) ? data?.pagination : undefined;
 
-    const downloadCSV = () => {
+    const downloadCSV = async () => {
+        let studentsToExport: Student[] = [];
+        if (filter === "all" && paginationInfo) {
+            const allPagesPromises = [];
+            for (let i = 1; i <= paginationInfo.totalPages; i++) {
+                allPagesPromises.push(fetchStudentsByFilter(filter, i, paginationInfo.total));
+            }
+            const allResponses = await Promise.all(allPagesPromises);
+            studentsToExport = allResponses.flatMap(res => (res as ApiResponse).data);
+        } else {
+            studentsToExport = studentsList;
+            if (filter === "all") {
+                const response = await fetchStudentsByFilter("all", 1, 1000000);
+                studentsToExport = (response as ApiResponse).data;
+            }
+        }
+
         const csvContent = [
-            ["Name", "Class", "Contact", "Parent Contact"],
-            ...filteredStudents.map((s) => [
+            ["Name", "Class", "Contact", "Parent Contact", "Arrears"],
+            ...studentsToExport.map((s) => [
                 s.name,
                 s.class,
                 s.contact,
                 s.parentContact,
+                filter === "unpaid" && s.arrears !== undefined ? `$${s.arrears.toFixed(2)}` : "N/A",
             ]),
         ]
             .map((row) => row.join(","))
             .join("\n");
 
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        saveAs(blob, `students-${filter}-term.csv`);
+        saveAs(blob, `students-${filter}-${termForDisplay.name}.csv`);
     };
 
     return (
@@ -130,10 +151,10 @@ function StudentsPage() {
                     View and manage all students enrolled at Vumba View Academy
                 </p>
                 <Button className="md:w-fit" asChild>
-                    <Link href="/students/new">
+                    <Link href="/accounting/invoices/new">
                         <span className="flex items-center gap-2">
                             <Plus className="h-4 w-4" />
-                            New invoice
+                            Add Student
                         </span>
                     </Link>
                 </Button>
@@ -141,9 +162,9 @@ function StudentsPage() {
 
             <div className="flex justify-between items-center mb-4">
                 <div className="space-x-2">
-                    <Button variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")}>All</Button>
-                    <Button variant={filter === "paid" ? "default" : "outline"} onClick={() => setFilter("paid")}>Paid This Term</Button>
-                    <Button variant={filter === "unpaid" ? "default" : "outline"} onClick={() => setFilter("unpaid")}>Haven't paid this term</Button>
+                    <Button variant={filter === "all" ? "default" : "outline"} onClick={() => { setFilter("all"); setPage(1); }}>All</Button>
+                    <Button variant={filter === "paid" ? "default" : "outline"} onClick={() => { setFilter("paid"); setPage(1); }}>Paid This Term</Button>
+                    <Button variant={filter === "unpaid" ? "default" : "outline"} onClick={() => { setFilter("unpaid"); setPage(1); }}>Unpaid This Term</Button>
                 </div>
                 <Button variant="outline" onClick={downloadCSV}>Download CSV</Button>
             </div>
@@ -165,7 +186,7 @@ function StudentsPage() {
                             Retry
                         </Button>
                     </div>
-                ) : filteredStudents.length > 0 ? (
+                ) : studentsList.length > 0 ? (
                     <>
                         <Table>
                             <TableHeader>
@@ -175,10 +196,11 @@ function StudentsPage() {
                                     <TableHead>Contact</TableHead>
                                     <TableHead>Parent Contact</TableHead>
                                     <TableHead>Enrolled On</TableHead>
+                                    {filter === "unpaid" && <TableHead>Arrears</TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredStudents.map((student) => (
+                                {studentsList.map((student) => (
                                     <TableRow key={student.id}>
                                         <TableCell className="font-medium">{student.name}</TableCell>
                                         <TableCell>{student.class}</TableCell>
@@ -187,45 +209,52 @@ function StudentsPage() {
                                         <TableCell>
                                             {new Date(student.createdAt).toLocaleDateString()}
                                         </TableCell>
+                                        {filter === "unpaid" && (
+                                            <TableCell className="text-red-500 font-semibold">
+                                                {student.arrears !== undefined ? `$${student.arrears.toFixed(2)}` : "N/A"}
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
 
-                        <div className="flex items-center justify-between mt-4">
-                            <div className="text-sm text-muted-foreground">
-                                Showing{" "}
-                                <strong>
-                                    {(page - 1) * limit + 1}-
-                                    {Math.min(page * limit, studentsData.pagination.total)}
-                                </strong>{" "}
-                                of <strong>{studentsData.pagination.total}</strong> students
+                        {filter === "all" && paginationInfo && (
+                            <div className="flex items-center justify-between mt-4">
+                                <div className="text-sm text-muted-foreground">
+                                    Showing{" "}
+                                    <strong>
+                                        {(page - 1) * limit + 1}-
+                                        {Math.min(page * limit, paginationInfo.total)}
+                                    </strong>{" "}
+                                    of <strong>{paginationInfo.total}</strong> students
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setPage((old) => Math.max(old - 1, 1))}
+                                        disabled={page === 1}
+                                    >
+                                        Previous
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setPage((old) => old + 1)}
+                                        disabled={
+                                            page === paginationInfo.totalPages ||
+                                            paginationInfo.totalPages === 0
+                                        }
+                                    >
+                                        Next
+                                    </Button>
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setPage((old) => Math.max(old - 1, 1))}
-                                    disabled={page === 1}
-                                >
-                                    Previous
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setPage((old) => old + 1)}
-                                    disabled={
-                                        page === studentsData.pagination.totalPages ||
-                                        studentsData.pagination.totalPages === 0
-                                    }
-                                >
-                                    Next
-                                </Button>
-                            </div>
-                        </div>
+                        )}
                     </>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-8 gap-4">
                         <GraduationCap className="h-12 w-12 text-muted-foreground" />
-                        <p className="text-muted-foreground">No students found</p>
+                        <p className="text-muted-foreground">No students found for this filter.</p>
                     </div>
                 )}
             </Card>
