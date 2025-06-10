@@ -1,7 +1,7 @@
 // src/app/students/[id]/StudentDetailsClient.tsx
-"use client"; // This component is a Client Component
+"use client";
 
-import { useParams } from "next/navigation"; // Can now use useParams
+import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import {
@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-// import { Input } from "@/components/ui/input"; // Not directly used in this component, but good to keep
 import {
     Select,
     SelectContent,
@@ -29,11 +28,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { useState, useMemo } from "react"; // Can now use useState, useMemo
-import { Label } from "@/components/ui/label"; // Label for Select inputs
+import { useState, useMemo } from "react";
+import { Label } from "@/components/ui/label";
 
 // --- Type Definitions (Match your Prisma models closely) ---
-// Define these types here or import them from a shared types file
 interface Payment {
     id: string;
     amount: number;
@@ -97,6 +95,8 @@ interface StudentDetailsClientProps {
 }
 
 export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
+    // --- ALL HOOK CALLS GO HERE, UNCONDITIONALLY ---
+
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
@@ -124,25 +124,9 @@ export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
         enabled: !!studentId,
     });
 
-    if (isLoading) {
-        return <div className="p-8 text-center">Loading student details...</div>;
-    }
-
-    if (isError) {
-        return (
-            <div className="p-8 text-center text-red-600">
-                Error loading student: {error?.message || "Unknown error"}
-            </div>
-        );
-    }
-
-    if (!studentData) {
-        return <div className="p-8 text-center">Student not found.</div>;
-    }
-
-    const allInvoices = studentData.invoices || [];
-
-    const grandTotal = allInvoices.reduce((sum, invoice) => sum + invoice.total, 0);
+    // Calculate allInvoices and schoolFeesInvoices using useMemo.
+    // Ensure studentData is safely accessed for these calculations if it can be undefined initially.
+    const allInvoices = studentData?.invoices || [];
 
     const schoolFeesInvoices = useMemo(() => {
         let filteredInvoices = allInvoices.filter(
@@ -165,7 +149,31 @@ export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
         return filteredInvoices;
     }, [allInvoices, selectedTerm, selectedYear]);
 
+    // --- END OF HOOK CALLS ---
+
+    // --- CONDITIONAL RETURNS (AFTER ALL HOOKS ARE CALLED) ---
+    if (isLoading) {
+        return <div className="p-8 text-center">Loading student details...</div>;
+    }
+
+    if (isError) {
+        return (
+            <div className="p-8 text-center text-red-600">
+                Error loading student: {error?.message || "Unknown error"}
+            </div>
+        );
+    }
+
+    if (!studentData) {
+        return <div className="p-8 text-center">Student not found.</div>;
+    }
+
+    // --- REST OF THE COMPONENT RENDERING LOGIC ---
+    // These calculations can safely run here, as studentData is guaranteed to exist
+    // if we reach this point.
+    const grandTotal = allInvoices.reduce((sum, invoice) => sum + invoice.total, 0);
     const schoolFeesTotal = schoolFeesInvoices.reduce((sum, invoice) => sum + invoice.total, 0);
+
 
     return (
         <div className="p-8 space-y-8">
@@ -182,7 +190,7 @@ export function StudentDetailsClient({ studentId }: StudentDetailsClientProps) {
                         <strong>Class:</strong> {studentData.class}
                     </div>
                     <div>
-                        <strong>Student Contact:</strong> {studentData.contact}
+                        <strong>Contact:</strong> {studentData.contact}
                     </div>
                     <div>
                         <strong>Parent Contact:</strong> {studentData.parentContact}
