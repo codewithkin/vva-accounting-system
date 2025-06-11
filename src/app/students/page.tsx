@@ -67,12 +67,13 @@ const fetchStudentsByFilter = async (
     let url = `${getBaseUrl()}/api/accounting/students`;
 
     if (filter === "unpaid") {
-        url = `${getBaseUrl()}/api/accounting/students/?filter=unpaid`;
+        url = `${getBaseUrl()}/api/accounting/students/unpaid`;
         const response = await axios.get<ApiResponse>(url);
         return response.data;
     } else if (filter === "paid") {
-        url = `${getBaseUrl()}/api/accounting/students/?filter=paid`;
+        url = `${getBaseUrl()}/api/accounting/students/paid`;
         const response = await axios.get<ApiResponse>(url);
+        console.log("Paid students: ", response.data);
         return response.data;
     } else {
         url = `${getBaseUrl()}/api/accounting/students/?page=${page}&limit=${limit}`;
@@ -114,6 +115,8 @@ function StudentsPage() {
         queryFn: () => fetchStudentsByFilter(filter, page, limit),
     });
 
+    console.log("Data: ", data)
+
     // Term logic for filtering and arrears calculation
     const now = new Date();
     const year = now.getFullYear();
@@ -135,7 +138,7 @@ function StudentsPage() {
                     const itemFeeType = inv.items?.feeType || (Array.isArray(inv.items) && inv.items[0]?.feeType);
                     const d = new Date(inv.dueDate);
                     return (
-                        itemFeeType === "Fees" &&
+                        itemFeeType === "School Fees" &&
                         inv.status === "Paid" &&
                         d >= currentTerm.start &&
                         d <= currentTerm.end
@@ -152,7 +155,7 @@ function StudentsPage() {
                     const itemFeeType = inv.items?.feeType || (Array.isArray(inv.items) && inv.items[0]?.feeType);
                     const d = new Date(inv.dueDate);
                     return (
-                        itemFeeType === "Fees" &&
+                        itemFeeType === "School Fees" &&
                         inv.status === "Paid" &&
                         d >= currentTerm.start &&
                         d <= currentTerm.end
@@ -163,7 +166,7 @@ function StudentsPage() {
                         .filter((inv: any) => {
                             const itemFeeType = inv.items?.feeType || (Array.isArray(inv.items) && inv.items[0]?.feeType);
                             const d = new Date(inv.dueDate);
-                            return itemFeeType === "Fees" && d >= currentTerm.start && d <= currentTerm.end;
+                            return itemFeeType === "School Fees" && d >= currentTerm.start && d <= currentTerm.end;
                         })
                         .reduce((sum, inv) => sum + (inv.payments?.reduce((pSum: number, p: any) => pSum + p.amount, 0) || 0), 0);
 
