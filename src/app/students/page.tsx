@@ -67,11 +67,11 @@ const fetchStudentsByFilter = async (
     let url = `${getBaseUrl()}/api/accounting/students`;
 
     if (filter === "unpaid") {
-        url = `${getBaseUrl()}/api/accounting/students/unpaid`;
+        url = `${getBaseUrl()}/api/accounting/students/unpaid/?page=${page}&limit=${limit}`;
         const response = await axios.get<ApiResponse>(url);
         return response.data;
     } else if (filter === "paid") {
-        url = `${getBaseUrl()}/api/accounting/students/paid`;
+        url = `${getBaseUrl()}/api/accounting/students/paid/?page=${page}&limit=${limit}`;
         const response = await axios.get<ApiResponse>(url);
         console.log("Paid students: ", response.data);
         return response.data;
