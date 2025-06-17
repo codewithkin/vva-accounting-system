@@ -77,7 +77,7 @@ interface ApiResponse {
 const fetchInvoices = async (page = 1, limit = 10, status?: string): Promise<ApiResponse> => {
     const url = `${process.env.NODE_ENV === "development"
         ? "http://localhost:8080"
-        : "https://vva-server-0chny.kinsta.app"
+        : "http://91.99.169.184:8080"
         }/api/accounting/invoices/?page=${page}&limit=${limit}${status ? `&status=${status}` : ""
         }`;
     const response = await axios.get(url);
@@ -88,7 +88,7 @@ const fetchInvoices = async (page = 1, limit = 10, status?: string): Promise<Api
 const deleteInvoice = async (invoiceId: string) => {
     const url = `${process.env.NODE_ENV === "development"
         ? "http://localhost:8080"
-        : "https://vva-server-0chny.kinsta.app"
+        : "http://91.99.169.184:8080"
         }/api/accounting/invoices/${invoiceId}`;
     await axios.delete(url);
 };
@@ -136,7 +136,7 @@ function InvoicesPage() {
             const response = await axios.get(
                 `${process.env.NODE_ENV === "development"
                     ? "http://localhost:8080"
-                    : "https://vva-server-0chny.kinsta.app"
+                    : "http://91.99.169.184:8080"
                 }/api/accounting/invoices/?limit=0${statusFilter ? `&status=${statusFilter}` : ""}`
             );
 

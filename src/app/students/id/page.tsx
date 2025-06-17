@@ -22,7 +22,7 @@ interface ApiResponse {
 const getBaseUrl = () =>
     process.env.NODE_ENV === "development"
         ? "http://localhost:8080"
-        : "https://vva-server-0chny.kinsta.app";
+        : "http://91.99.169.184:8080";
 
 
 // The default export for the page is now a Server Component

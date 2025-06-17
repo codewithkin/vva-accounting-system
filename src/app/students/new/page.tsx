@@ -22,7 +22,7 @@ export default function NewStudentPage() {
         mutationFn: async (student: StudentFormValues) => {
             const res = await axios.post(`${process.env.NODE_ENV === "development"
                 ? "http://localhost:8080"
-                : "https://vva-server-0chny.kinsta.app"
+                : "http://91.99.169.184:8080"
                 }/api/accounting/students/new`, student);
             return res.data;
         },
